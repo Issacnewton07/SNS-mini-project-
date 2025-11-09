@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EEG Dashboard</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 20px;
+        }
+        #network {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h2>EEG Time Series (Chart.js)</h2>
+<canvas id="eegPlot" width="600" height="250"></canvas>
+
+<h2>EEG Connectivity Graph (D3.js)</h2>
+<div id="network"></div>
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://d3js.org/d3.v6.min.js"></script>
+
+<script>
+// ---------------------------------------------------
+// ✅ Chart.js Time Series Plot
+// ---------------------------------------------------
+const ctx = document.getElementById('eegPlot').getContext('2d');
+
+const eegData = Array.from({length:1000}, () => Math.random());
+
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: Array.from({length:1000}, (_, i) => (i / 256).toFixed(2)),
+        datasets: [{
+            label: 'EEG Channel 1',
+            data: eegData,
+            borderWidth: 1,
+            borderColor: 'blue',
+            pointRadius: 0
+        }]
+    },
+    options: {
+        responsive: false,
+        animation: false,
+        scales: {
+            x: {
+                title: { display: true, text: 'Time (s)' }
+            },
+            y: {
+                title: { display: true, text: 'Amplitude' }
+            }
+        }
+    }
+});
+
+// ---------------------------------------------------
+// ✅ D3.js Connectivity Graph
+// ---------------------------------------------------
+const nodes = [
+    { id: 'Cz' },
+    { id: 'C3' },
+    { id: 'C4' }
+];
+
+const links = [
+    { source: 'Cz', target: 'C3', value: 1.0 },
+    { source: 'Cz', target: 'C4', value: 0.8 }
+];
+
+const width = 450;
+const height = 350;
+
+const svg = d3.select("#network")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+// Force simulation
+const simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d => d.id).distance(120))
+    .force("charge", d3.forceManyBody().strength(-250))
+    .force("center", d3.forceCenter(width / 2, height / 2));
+
+// Draw links
+const link = svg.selectAll("line")
+    .data(links)
+    .enter()
+    .append("line")
+    .attr("stroke", "#444")
+    .attr("stroke-width", d => d.value * 3);
+
+// Draw nodes
+const node = svg.selectAll("circle")
+    .data(nodes)
+    .enter()
+    .append("circle")
+    .attr("r", 10)
+    .attr("fill", "steelblue")
+    .call(d3.drag()
+        .on("start", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        })
+        .on("drag", (event, d) => {
+            d.fx = event.x;
+            d.fy = event.y;
+        })
+        .on("end", (event, d) => {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        })
+    );
+
+// Node labels
+svg.selectAll("text")
+    .data(nodes)
+    .enter()
+    .append("text")
+    .text(d => d.id)
+    .attr("font-size", 14)
+    .attr("dx", 15)
+    .attr("dy", 5);
+
+// Update positions on tick
+simulation.on("tick", () => {
+    link.attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+
+    node.attr("cx", d => d.x)
+        .attr("cy", d => d.y);
+
+    svg.selectAll("text")
+        .attr("x", d => d.x)
+        .attr("y", d => d.y);
+});
+</script>
+
+</body>
+</html>
